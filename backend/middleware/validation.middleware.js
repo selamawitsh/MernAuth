@@ -3,6 +3,7 @@ import { body, validationResult } from 'express-validator';
 // Validation rules for registration
 export const validateRegister = [
   body('fullName')
+    .isString().withMessage('Email must be a string') 
     .trim()
     .notEmpty().withMessage('Full name is required')
     .isLength({ min: 2, max: 50 }).withMessage('Full name must be between 2 and 50 characters')
@@ -46,6 +47,7 @@ body('email')
     }),
 
   body('password')
+    .isString().withMessage('Password must be a string') 
     .notEmpty().withMessage('Password is required')
     .isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
@@ -72,10 +74,12 @@ body('email')
 // Validation rules for login
 export const validateLogin = [
   body('identifier')
+    .isString().withMessage('identifier must be a string') 
     .trim()
     .notEmpty().withMessage('Username, email, or phone is required'),
   
   body('password')
+    .isString().withMessage('Password must be a string') 
     .notEmpty().withMessage('Password is required')
 ];
 
