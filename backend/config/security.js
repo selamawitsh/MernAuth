@@ -23,6 +23,27 @@ export const securityConfig = {
     crossOriginOpenerPolicy: true,
     crossOriginResourcePolicy: { policy: "same-site" },
   },
+
+    
+  // Rate Limiting Configuration
+    rateLimit: {
+        general: {
+        windowMs: 5 * 60 * 1000, 
+        max: 10, 
+        message: 'Too many requests from this IP, please try again after 5 minutes',
+        standardHeaders: true, 
+        legacyHeaders: false, 
+        },
+      
+        auth: {
+        windowMs: 5 * 60 * 1000,
+        max: 5, 
+        message: 'Too many authentication attempts, please try again after 5 minutes',
+        skipSuccessfulRequests: true, 
+        standardHeaders: true,
+        legacyHeaders: false,
+        },
+    },
   
   // Request limits
   request: {

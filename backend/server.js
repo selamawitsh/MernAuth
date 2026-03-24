@@ -6,7 +6,9 @@ import {
   helmetMiddleware, 
   corsMiddleware, 
   mongoSanitizeMiddleware,
-  bodyParserMiddleware 
+  bodyParserMiddleware,
+  generalRateLimiter, 
+  authRateLimiter 
 } from './middleware/security/index.js';
 
 dotenv.config();
@@ -19,14 +21,17 @@ const app = express();
 app.use(helmetMiddleware);           
 app.use(corsMiddleware);             
 
-// 2. Body parsing SECOND (needed for reading request bodies)
+// 2. Apply general rate limiting to ALL requests
+app.use(generalRateLimiter);  
+
+// 3. Body parsing
 app.use(...bodyParserMiddleware);    
 
-// 3. NoSQL injection prevention THIRD
-app.use(mongoSanitizeMiddleware);    
+// 4. NoSQL injection prevention
+app.use(mongoSanitizeMiddleware);     
 
 // ROUTES
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authRateLimiter, authRoutes); 
 
 
 // Start server
