@@ -9,33 +9,42 @@ const generateToken = (userId) => {
   });
 };
 
-// REGISTER 
+// REGISTER
 export const register = async (req, res) => {
   try {
     const { fullName, grandfatherName, username, phoneNumber, email, password, location, birthDate } = req.body;
 
+    // Check for existing user
     const existingUser = await User.findOne({
       $or: [{ email }, { username }, { phoneNumber }]
     });
 
     if (existingUser) {
+      // Determine which field already exists
+      let field = '';
+      if (existingUser.email === email) field = 'email';
+      if (existingUser.username === username) field = 'username';
+      if (existingUser.phoneNumber === phoneNumber) field = 'phoneNumber';
+      
       return res.status(400).json({
         success: false,
-        message: 'User already exists'
+        message: `${field} already exists`
       });
     }
 
+    // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // Create user
     const user = await User.create({
-      fullName,
-      grandfatherName,
+      fullName: fullName.trim(),
+      grandfatherName: grandfatherName.trim(),
       username: username.toLowerCase(),
       phoneNumber,
       email: email.toLowerCase(),
-      password: hashedPassword, 
-      location,
+      password: hashedPassword,
+      location: location.trim(),
       birthDate
     });
 
@@ -43,6 +52,7 @@ export const register = async (req, res) => {
 
     res.status(201).json({
       success: true,
+      message: 'User registered successfully',
       user: {
         _id: user._id,
         fullName: user.fullName,
@@ -56,7 +66,7 @@ export const register = async (req, res) => {
     console.error('Registration error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error. Please try again later.'
     });
   }
 };
@@ -66,6 +76,7 @@ export const login = async (req, res) => {
   try {
     const { identifier, password } = req.body;
 
+    // Find user by identifier
     const user = await User.findOne({
       $or: [
         { username: identifier.toLowerCase() },
@@ -81,8 +92,8 @@ export const login = async (req, res) => {
       });
     }
 
+    // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.password);
-
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
@@ -90,10 +101,12 @@ export const login = async (req, res) => {
       });
     }
 
+    // Generate token
     const token = generateToken(user._id);
 
     res.json({
       success: true,
+      message: 'Login successful',
       user: {
         _id: user._id,
         fullName: user.fullName,
@@ -107,7 +120,7 @@ export const login = async (req, res) => {
     console.error('Login error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error. Please try again later.'
     });
   }
 };
