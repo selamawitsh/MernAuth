@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import Alert from '../components/Alert';
+import rateLimiter from '../services/rateLimiter';
 
 const SignUp = () => {
   const navigate = useNavigate();
@@ -20,6 +21,29 @@ const SignUp = () => {
   const [errors, setErrors] = useState({});
   const [generalError, setGeneralError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [rateLimitInfo, setRateLimitInfo] = useState({
+    remainingAttempts: 5,
+    isLimited: false,
+    waitTime: 0
+  });
+
+  // Check rate limit on component mount
+  useEffect(() => {
+    const checkRateLimit = () => {
+      const endpoint = '/auth/register';
+      const limitCheck = rateLimiter.isAllowed(endpoint);
+      setRateLimitInfo({
+        remainingAttempts: limitCheck.remainingAttempts,
+        isLimited: !limitCheck.allowed,
+        waitTime: limitCheck.waitTime
+      });
+    };
+    checkRateLimit();
+    
+    // Update rate limit info periodically
+    const interval = setInterval(checkRateLimit, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleChange = (e) => {
     setFormData({
@@ -37,17 +61,48 @@ const SignUp = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Check rate limit before making request
+    const endpoint = '/auth/register';
+    const limitCheck = rateLimiter.isAllowed(endpoint);
+    
+    if (!limitCheck.allowed) {
+      setGeneralError(`Too many registration attempts. Please wait ${limitCheck.waitTime} minutes before trying again.`);
+      setRateLimitInfo({
+        remainingAttempts: 0,
+        isLimited: true,
+        waitTime: limitCheck.waitTime
+      });
+      return;
+    }
+
     setIsLoading(true);
     setGeneralError('');
     setErrors({});
 
     try {
       const response = await api.post('/auth/register', formData);
+      
+      // Update rate limit info on successful registration
+      const remaining = rateLimiter.getRemainingAttempts(endpoint);
+      setRateLimitInfo({
+        remainingAttempts: remaining,
+        isLimited: false,
+        waitTime: 0
+      });
+      
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       navigate('/welcome');
     } catch (error) {
-      if (error.response) {
+      if (error.rateLimited) {
+        setGeneralError(error.message);
+        setRateLimitInfo({
+          remainingAttempts: 0,
+          isLimited: true,
+          waitTime: error.waitTime || 15
+        });
+      } else if (error.response) {
         // Server responded with error
         const { data } = error.response;
         
@@ -69,6 +124,14 @@ const SignUp = () => {
         // Other errors
         setGeneralError('An error occurred. Please try again.');
       }
+      
+      // Record failed attempt
+      rateLimiter.recordAttempt(endpoint);
+      const remaining = rateLimiter.getRemainingAttempts(endpoint);
+      setRateLimitInfo(prev => ({
+        ...prev,
+        remainingAttempts: remaining
+      }));
     } finally {
       setIsLoading(false);
     }
@@ -78,6 +141,23 @@ const SignUp = () => {
     <div className="min-h-screen bg-gray-100 py-12 px-4">
       <div className="max-w-2xl mx-auto bg-white rounded-lg shadow p-8">
         <h2 className="text-2xl font-bold text-center mb-6">Create Account</h2>
+
+        {/* Rate limit warning */}
+        {rateLimitInfo.isLimited && (
+          <Alert 
+            type="warning" 
+            message={`Rate limit reached. Please wait ${rateLimitInfo.waitTime} minutes before trying again.`}
+            onClose={() => {}}
+          />
+        )}
+        
+        {!rateLimitInfo.isLimited && rateLimitInfo.remainingAttempts <= 2 && (
+          <Alert 
+            type="warning" 
+            message={`Warning: Only ${rateLimitInfo.remainingAttempts} registration attempts remaining. Too many failed attempts will temporarily block registration.`}
+            onClose={() => {}}
+          />
+        )}
 
         {generalError && (
           <Alert 
@@ -97,9 +177,10 @@ const SignUp = () => {
                 required
                 value={formData.fullName}
                 onChange={handleChange}
+                disabled={isLoading || rateLimitInfo.isLimited}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${
                   errors.fullName ? 'border-red-500' : ''
-                }`}
+                } ${(isLoading || rateLimitInfo.isLimited) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               />
               {errors.fullName && (
                 <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>
@@ -114,9 +195,10 @@ const SignUp = () => {
                 required
                 value={formData.grandfatherName}
                 onChange={handleChange}
+                disabled={isLoading || rateLimitInfo.isLimited}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${
                   errors.grandfatherName ? 'border-red-500' : ''
-                }`}
+                } ${(isLoading || rateLimitInfo.isLimited) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               />
               {errors.grandfatherName && (
                 <p className="text-red-500 text-sm mt-1">{errors.grandfatherName}</p>
@@ -131,9 +213,10 @@ const SignUp = () => {
                 required
                 value={formData.username}
                 onChange={handleChange}
+                disabled={isLoading || rateLimitInfo.isLimited}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${
                   errors.username ? 'border-red-500' : ''
-                }`}
+                } ${(isLoading || rateLimitInfo.isLimited) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               />
               {errors.username && (
                 <p className="text-red-500 text-sm mt-1">{errors.username}</p>
@@ -148,9 +231,10 @@ const SignUp = () => {
                 required
                 value={formData.phoneNumber}
                 onChange={handleChange}
+                disabled={isLoading || rateLimitInfo.isLimited}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${
                   errors.phoneNumber ? 'border-red-500' : ''
-                }`}
+                } ${(isLoading || rateLimitInfo.isLimited) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               />
               {errors.phoneNumber && (
                 <p className="text-red-500 text-sm mt-1">{errors.phoneNumber}</p>
@@ -165,9 +249,10 @@ const SignUp = () => {
                 required
                 value={formData.email}
                 onChange={handleChange}
+                disabled={isLoading || rateLimitInfo.isLimited}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${
                   errors.email ? 'border-red-500' : ''
-                }`}
+                } ${(isLoading || rateLimitInfo.isLimited) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               />
               {errors.email && (
                 <p className="text-red-500 text-sm mt-1">{errors.email}</p>
@@ -182,9 +267,10 @@ const SignUp = () => {
                 required
                 value={formData.password}
                 onChange={handleChange}
+                disabled={isLoading || rateLimitInfo.isLimited}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${
                   errors.password ? 'border-red-500' : ''
-                }`}
+                } ${(isLoading || rateLimitInfo.isLimited) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               />
               {errors.password && (
                 <p className="text-red-500 text-sm mt-1">{errors.password}</p>
@@ -202,9 +288,10 @@ const SignUp = () => {
                 required
                 value={formData.location}
                 onChange={handleChange}
+                disabled={isLoading || rateLimitInfo.isLimited}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${
                   errors.location ? 'border-red-500' : ''
-                }`}
+                } ${(isLoading || rateLimitInfo.isLimited) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               />
               {errors.location && (
                 <p className="text-red-500 text-sm mt-1">{errors.location}</p>
@@ -219,9 +306,10 @@ const SignUp = () => {
                 required
                 value={formData.birthDate}
                 onChange={handleChange}
+                disabled={isLoading || rateLimitInfo.isLimited}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${
                   errors.birthDate ? 'border-red-500' : ''
-                }`}
+                } ${(isLoading || rateLimitInfo.isLimited) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               />
               {errors.birthDate && (
                 <p className="text-red-500 text-sm mt-1">{errors.birthDate}</p>
@@ -231,10 +319,12 @@ const SignUp = () => {
 
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || rateLimitInfo.isLimited}
             className="w-full mt-6 bg-blue-600 text-white py-3 rounded hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed"
           >
-            {isLoading ? 'Creating account...' : 'Sign Up'}
+            {isLoading ? 'Creating account...' : 
+             rateLimitInfo.isLimited ? `Please wait ${rateLimitInfo.waitTime} minutes` : 
+             'Sign Up'}
           </button>
         </form>
 
@@ -243,6 +333,7 @@ const SignUp = () => {
           <button
             onClick={() => navigate('/login')}
             className="text-blue-600 hover:underline"
+            disabled={isLoading}
           >
             Sign In
           </button>
