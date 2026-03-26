@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import Alert from '../components/Alert';
-import rateLimiter from '../services/rateLimiter';
+import * as rateLimiter from '../services/rateLimiter';
 
 const SignUp = () => {
   const navigate = useNavigate();
@@ -21,27 +21,23 @@ const SignUp = () => {
   const [errors, setErrors] = useState({});
   const [generalError, setGeneralError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [rateLimitInfo, setRateLimitInfo] = useState({
-    remainingAttempts: 5,
-    isLimited: false,
-    waitTime: 0
-  });
+  const [remainingAttempts, setRemainingAttempts] = useState(5);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [waitMinutes, setWaitMinutes] = useState(0);
 
-  // Check rate limit on component mount
+  // Check rate limit on component mount and every 30 seconds
   useEffect(() => {
-    const checkRateLimit = () => {
-      const endpoint = '/auth/register';
-      const limitCheck = rateLimiter.isAllowed(endpoint);
-      setRateLimitInfo({
-        remainingAttempts: limitCheck.remainingAttempts,
-        isLimited: !limitCheck.allowed,
-        waitTime: limitCheck.waitTime
-      });
+    const checkLimit = () => {
+      const check = rateLimiter.canTry();
+      setRemainingAttempts(check.remaining);
+      setIsBlocked(!check.allowed);
+      setWaitMinutes(check.waitMinutes);
     };
-    checkRateLimit();
     
-    // Update rate limit info periodically
-    const interval = setInterval(checkRateLimit, 60000);
+    checkLimit();
+    
+    // Check every 30 seconds for countdown updates
+    const interval = setInterval(checkLimit, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -50,6 +46,7 @@ const SignUp = () => {
       ...formData,
       [e.target.name]: e.target.value
     });
+    
     // Clear error for this field when user starts typing
     if (errors[e.target.name]) {
       setErrors({
@@ -57,22 +54,23 @@ const SignUp = () => {
         [e.target.name]: ''
       });
     }
+    
+    // Clear general error when user types
+    if (generalError) {
+      setGeneralError('');
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     // Check rate limit before making request
-    const endpoint = '/auth/register';
-    const limitCheck = rateLimiter.isAllowed(endpoint);
+    const check = rateLimiter.canTry();
     
-    if (!limitCheck.allowed) {
-      setGeneralError(`Too many registration attempts. Please wait ${limitCheck.waitTime} minutes before trying again.`);
-      setRateLimitInfo({
-        remainingAttempts: 0,
-        isLimited: true,
-        waitTime: limitCheck.waitTime
-      });
+    if (!check.allowed) {
+      setGeneralError(`Too many registration attempts! Please wait ${check.waitMinutes} minute${check.waitMinutes !== 1 ? 's' : ''}.`);
+      setIsBlocked(true);
+      setWaitMinutes(check.waitMinutes);
       return;
     }
 
@@ -83,27 +81,24 @@ const SignUp = () => {
     try {
       const response = await api.post('/auth/register', formData);
       
-      // Update rate limit info on successful registration
-      const remaining = rateLimiter.getRemainingAttempts(endpoint);
-      setRateLimitInfo({
-        remainingAttempts: remaining,
-        isLimited: false,
-        waitTime: 0
-      });
-      
+      // Registration successful
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
+      
+      // Reset rate limiter on success
+      rateLimiter.resetAttempts();
+      
       navigate('/welcome');
+      
     } catch (error) {
-      if (error.rateLimited) {
+      // Handle different error types
+      if (error.isRateLimited) {
+        // Rate limit error from server
         setGeneralError(error.message);
-        setRateLimitInfo({
-          remainingAttempts: 0,
-          isLimited: true,
-          waitTime: error.waitTime || 15
-        });
+        setIsBlocked(true);
+        setWaitMinutes(error.waitMinutes || 5);
       } else if (error.response) {
-        // Server responded with error
+        // Server responded with error - removed unused 'status' variable
         const { data } = error.response;
         
         if (data.errors) {
@@ -116,22 +111,29 @@ const SignUp = () => {
         } else if (data.message) {
           // General error like duplicate user
           setGeneralError(data.message);
+          
+          // Record failed attempt for registration errors
+          rateLimiter.recordFailedAttempt();
+          
+          // Update remaining attempts
+          const remaining = rateLimiter.getRemainingAttempts();
+          setRemainingAttempts(remaining);
+          
+          // Check if now blocked
+          const checkAgain = rateLimiter.canTry();
+          if (!checkAgain.allowed) {
+            setIsBlocked(true);
+            setWaitMinutes(checkAgain.waitMinutes);
+            setGeneralError(`Too many registration attempts! Please wait ${checkAgain.waitMinutes} minutes.`);
+          }
         }
       } else if (error.request) {
         // Request made but no response
-        setGeneralError('Network error. Please check your connection.');
+        setGeneralError('Network error. Cannot connect to server. Please check your connection.');
       } else {
         // Other errors
-        setGeneralError('An error occurred. Please try again.');
+        setGeneralError('Something went wrong. Please try again.');
       }
-      
-      // Record failed attempt
-      rateLimiter.recordAttempt(endpoint);
-      const remaining = rateLimiter.getRemainingAttempts(endpoint);
-      setRateLimitInfo(prev => ({
-        ...prev,
-        remainingAttempts: remaining
-      }));
     } finally {
       setIsLoading(false);
     }
@@ -142,24 +144,26 @@ const SignUp = () => {
       <div className="max-w-2xl mx-auto bg-white rounded-lg shadow p-8">
         <h2 className="text-2xl font-bold text-center mb-6">Create Account</h2>
 
-        {/* Rate limit warning */}
-        {rateLimitInfo.isLimited && (
+        {/* Blocked warning */}
+        {isBlocked && (
           <Alert 
             type="warning" 
-            message={`Rate limit reached. Please wait ${rateLimitInfo.waitTime} minutes before trying again.`}
+            message={`Too many registration attempts! Please wait ${waitMinutes} minute${waitMinutes !== 1 ? 's' : ''} before trying again.`}
             onClose={() => {}}
           />
         )}
         
-        {!rateLimitInfo.isLimited && rateLimitInfo.remainingAttempts <= 2 && (
+        {/* Remaining attempts warning */}
+        {!isBlocked && remainingAttempts <= 2 && remainingAttempts > 0 && (
           <Alert 
             type="warning" 
-            message={`Warning: Only ${rateLimitInfo.remainingAttempts} registration attempts remaining. Too many failed attempts will temporarily block registration.`}
+            message={`Warning: Only ${remainingAttempts} registration attempt${remainingAttempts === 1 ? '' : 's'} remaining. After ${remainingAttempts} more failure${remainingAttempts === 1 ? '' : 's'}, you'll be blocked for 5 minutes.`}
             onClose={() => {}}
           />
         )}
 
-        {generalError && (
+        {/* General error message */}
+        {generalError && !generalError.includes('attempts') && (
           <Alert 
             type="error" 
             message={generalError} 
@@ -169,108 +173,114 @@ const SignUp = () => {
 
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Full Name */}
             <div>
-              <label className="block text-gray-700 mb-2">Full Name</label>
+              <label className="block text-gray-700 mb-2">Full Name *</label>
               <input
                 type="text"
                 name="fullName"
                 required
                 value={formData.fullName}
                 onChange={handleChange}
-                disabled={isLoading || rateLimitInfo.isLimited}
+                disabled={isLoading || isBlocked}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${
-                  errors.fullName ? 'border-red-500' : ''
-                } ${(isLoading || rateLimitInfo.isLimited) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                  errors.fullName ? 'border-red-500' : 'border-gray-300'
+                } ${(isLoading || isBlocked) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               />
               {errors.fullName && (
                 <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>
               )}
             </div>
 
+            {/* Grandfather Name */}
             <div>
-              <label className="block text-gray-700 mb-2">Grandfather Name</label>
+              <label className="block text-gray-700 mb-2">Grandfather Name *</label>
               <input
                 type="text"
                 name="grandfatherName"
                 required
                 value={formData.grandfatherName}
                 onChange={handleChange}
-                disabled={isLoading || rateLimitInfo.isLimited}
+                disabled={isLoading || isBlocked}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${
-                  errors.grandfatherName ? 'border-red-500' : ''
-                } ${(isLoading || rateLimitInfo.isLimited) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                  errors.grandfatherName ? 'border-red-500' : 'border-gray-300'
+                } ${(isLoading || isBlocked) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               />
               {errors.grandfatherName && (
                 <p className="text-red-500 text-sm mt-1">{errors.grandfatherName}</p>
               )}
             </div>
 
+            {/* Username */}
             <div>
-              <label className="block text-gray-700 mb-2">Username</label>
+              <label className="block text-gray-700 mb-2">Username *</label>
               <input
                 type="text"
                 name="username"
                 required
                 value={formData.username}
                 onChange={handleChange}
-                disabled={isLoading || rateLimitInfo.isLimited}
+                disabled={isLoading || isBlocked}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${
-                  errors.username ? 'border-red-500' : ''
-                } ${(isLoading || rateLimitInfo.isLimited) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                  errors.username ? 'border-red-500' : 'border-gray-300'
+                } ${(isLoading || isBlocked) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               />
               {errors.username && (
                 <p className="text-red-500 text-sm mt-1">{errors.username}</p>
               )}
             </div>
 
+            {/* Phone Number */}
             <div>
-              <label className="block text-gray-700 mb-2">Phone Number</label>
+              <label className="block text-gray-700 mb-2">Phone Number *</label>
               <input
                 type="tel"
                 name="phoneNumber"
                 required
                 value={formData.phoneNumber}
                 onChange={handleChange}
-                disabled={isLoading || rateLimitInfo.isLimited}
+                disabled={isLoading || isBlocked}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${
-                  errors.phoneNumber ? 'border-red-500' : ''
-                } ${(isLoading || rateLimitInfo.isLimited) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                  errors.phoneNumber ? 'border-red-500' : 'border-gray-300'
+                } ${(isLoading || isBlocked) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               />
               {errors.phoneNumber && (
                 <p className="text-red-500 text-sm mt-1">{errors.phoneNumber}</p>
               )}
             </div>
 
+            {/* Email */}
             <div>
-              <label className="block text-gray-700 mb-2">Email</label>
+              <label className="block text-gray-700 mb-2">Email *</label>
               <input
                 type="email"
                 name="email"
                 required
                 value={formData.email}
                 onChange={handleChange}
-                disabled={isLoading || rateLimitInfo.isLimited}
+                disabled={isLoading || isBlocked}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${
-                  errors.email ? 'border-red-500' : ''
-                } ${(isLoading || rateLimitInfo.isLimited) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                  errors.email ? 'border-red-500' : 'border-gray-300'
+                } ${(isLoading || isBlocked) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               />
               {errors.email && (
                 <p className="text-red-500 text-sm mt-1">{errors.email}</p>
               )}
             </div>
 
+            {/* Password */}
             <div>
-              <label className="block text-gray-700 mb-2">Password</label>
+              <label className="block text-gray-700 mb-2">Password *</label>
               <input
                 type="password"
                 name="password"
                 required
                 value={formData.password}
                 onChange={handleChange}
-                disabled={isLoading || rateLimitInfo.isLimited}
+                disabled={isLoading || isBlocked}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${
-                  errors.password ? 'border-red-500' : ''
-                } ${(isLoading || rateLimitInfo.isLimited) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                  errors.password ? 'border-red-500' : 'border-gray-300'
+                } ${(isLoading || isBlocked) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               />
               {errors.password && (
                 <p className="text-red-500 text-sm mt-1">{errors.password}</p>
@@ -280,36 +290,38 @@ const SignUp = () => {
               </p>
             </div>
 
+            {/* Location */}
             <div>
-              <label className="block text-gray-700 mb-2">Location</label>
+              <label className="block text-gray-700 mb-2">Location *</label>
               <input
                 type="text"
                 name="location"
                 required
                 value={formData.location}
                 onChange={handleChange}
-                disabled={isLoading || rateLimitInfo.isLimited}
+                disabled={isLoading || isBlocked}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${
-                  errors.location ? 'border-red-500' : ''
-                } ${(isLoading || rateLimitInfo.isLimited) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                  errors.location ? 'border-red-500' : 'border-gray-300'
+                } ${(isLoading || isBlocked) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               />
               {errors.location && (
                 <p className="text-red-500 text-sm mt-1">{errors.location}</p>
               )}
             </div>
 
+            {/* Birth Date */}
             <div>
-              <label className="block text-gray-700 mb-2">Birth Date</label>
+              <label className="block text-gray-700 mb-2">Birth Date *</label>
               <input
                 type="date"
                 name="birthDate"
                 required
                 value={formData.birthDate}
                 onChange={handleChange}
-                disabled={isLoading || rateLimitInfo.isLimited}
+                disabled={isLoading || isBlocked}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${
-                  errors.birthDate ? 'border-red-500' : ''
-                } ${(isLoading || rateLimitInfo.isLimited) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                  errors.birthDate ? 'border-red-500' : 'border-gray-300'
+                } ${(isLoading || isBlocked) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               />
               {errors.birthDate && (
                 <p className="text-red-500 text-sm mt-1">{errors.birthDate}</p>
@@ -319,12 +331,22 @@ const SignUp = () => {
 
           <button
             type="submit"
-            disabled={isLoading || rateLimitInfo.isLimited}
-            className="w-full mt-6 bg-blue-600 text-white py-3 rounded hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed"
+            disabled={isLoading || isBlocked}
+            className="w-full mt-6 bg-blue-600 text-white py-3 rounded hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed font-medium transition duration-200"
           >
-            {isLoading ? 'Creating account...' : 
-             rateLimitInfo.isLimited ? `Please wait ${rateLimitInfo.waitTime} minutes` : 
-             'Sign Up'}
+            {isLoading ? (
+              <span className="flex items-center justify-center">
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Creating account...
+              </span>
+            ) : isBlocked ? (
+              `Please wait ${waitMinutes} minute${waitMinutes !== 1 ? 's' : ''}`
+            ) : (
+              'Sign Up'
+            )}
           </button>
         </form>
 
@@ -332,7 +354,7 @@ const SignUp = () => {
           Already have an account?{' '}
           <button
             onClick={() => navigate('/login')}
-            className="text-blue-600 hover:underline"
+            className="text-blue-600 hover:underline font-medium"
             disabled={isLoading}
           >
             Sign In

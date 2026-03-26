@@ -1,5 +1,5 @@
 import axios from 'axios';
-import rateLimiter from './rateLimiter';
+import * as rateLimiter from './rateLimiter';
 
 const api = axios.create({
   baseURL: 'http://localhost:5000/api',
@@ -8,7 +8,7 @@ const api = axios.create({
   }
 });
 
-// Request interceptor with rate limiting
+// Request interceptor - check rate limit before sending
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -16,22 +16,19 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    // Check rate limit for auth endpoints
-    if (config.url.includes('/auth/login') || config.url.includes('/auth/register')) {
-      const rateLimitCheck = rateLimiter.isAllowed(config.url);
+    // Check rate limit for login and register
+    const isAuthEndpoint = config.url.includes('/auth/login') || 
+                          config.url.includes('/auth/register');
+    
+    if (isAuthEndpoint) {
+      const check = rateLimiter.canTry();
       
-      if (!rateLimitCheck.allowed) {
-        const error = new Error(`Rate limit exceeded. Please wait ${rateLimitCheck.waitTime} minutes before trying again.`);
-        error.rateLimited = true;
-        error.waitTime = rateLimitCheck.waitTime;
+      if (!check.allowed) {
+        const error = new Error(`Too many attempts. Please wait ${check.waitMinutes} minutes.`);
+        error.isRateLimited = true;
+        error.waitMinutes = check.waitMinutes;
         throw error;
       }
-      
-      // Attach rate limit info to config
-      config.rateLimitInfo = {
-        endpoint: config.url,
-        remainingAttempts: rateLimitCheck.remainingAttempts
-      };
     }
     
     return config;
@@ -39,22 +36,25 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor to track rate limits from server
+// Response interceptor - handle rate limit from server
 api.interceptors.response.use(
   (response) => {
-    // Record successful attempt
-    if (response.config.url.includes('/auth/login') || response.config.url.includes('/auth/register')) {
-      rateLimiter.recordAttempt(response.config.url);
+    if (response.config.url.includes('/auth/login') && response.status === 200) {
+      rateLimiter.resetAttempts();
     }
     return response;
   },
   (error) => {
-    // Handle rate limit errors from server
+    // Handle rate limit from server (429 status)
     if (error.response && error.response.status === 429) {
-      const waitTime = error.response.data.waitTime || 15;
-      error.rateLimited = true;
-      error.message = error.response.data.message || `Too many attempts. Please wait ${waitTime} minutes.`;
-      error.waitTime = waitTime;
+      error.isRateLimited = true;
+      error.message = error.response.data.message || 'Too many attempts. Please wait.';
+      
+      // Extract wait time from message if present
+      const match = error.message.match(/(\d+)/);
+      if (match) {
+        error.waitMinutes = parseInt(match[1]);
+      }
     }
     return Promise.reject(error);
   }

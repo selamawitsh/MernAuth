@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import Alert from '../components/Alert';
-import rateLimiter from '../services/rateLimiter';
+import * as rateLimiter from '../services/rateLimiter';
 
 const SignIn = () => {
   const navigate = useNavigate();
@@ -14,27 +14,22 @@ const SignIn = () => {
 
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [rateLimitInfo, setRateLimitInfo] = useState({
-    remainingAttempts: 5,
-    isLimited: false,
-    waitTime: 0
-  });
+  const [remainingAttempts, setRemainingAttempts] = useState(5);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [waitMinutes, setWaitMinutes] = useState(0);
 
-  // Check rate limit on component mount
+  // Check rate limit on component mount and every 30 seconds
   useEffect(() => {
-    const checkRateLimit = () => {
-      const endpoint = '/auth/login';
-      const limitCheck = rateLimiter.isAllowed(endpoint);
-      setRateLimitInfo({
-        remainingAttempts: limitCheck.remainingAttempts,
-        isLimited: !limitCheck.allowed,
-        waitTime: limitCheck.waitTime
-      });
+    const checkLimit = () => {
+      const check = rateLimiter.canTry();
+      setRemainingAttempts(check.remaining);
+      setIsBlocked(!check.allowed);
+      setWaitMinutes(check.waitMinutes);
     };
-    checkRateLimit();
     
-    // Update rate limit info periodically
-    const interval = setInterval(checkRateLimit, 60000);
+    checkLimit();
+    const interval = setInterval(checkLimit, 30000); // Check every 30 seconds
+    
     return () => clearInterval(interval);
   }, []);
 
@@ -49,17 +44,12 @@ const SignIn = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Check rate limit before making request
-    const endpoint = '/auth/login';
-    const limitCheck = rateLimiter.isAllowed(endpoint);
-    
-    if (!limitCheck.allowed) {
-      setError(`Too many login attempts. Please wait ${limitCheck.waitTime} minutes before trying again.`);
-      setRateLimitInfo({
-        remainingAttempts: 0,
-        isLimited: true,
-        waitTime: limitCheck.waitTime
-      });
+    // Check rate limit before submitting
+    const check = rateLimiter.canTry();
+    if (!check.allowed) {
+      setError(`Too many attempts! Please wait ${check.waitMinutes} minutes.`);
+      setIsBlocked(true);
+      setWaitMinutes(check.waitMinutes);
       return;
     }
 
@@ -69,47 +59,51 @@ const SignIn = () => {
     try {
       const response = await api.post('/auth/login', formData);
       
-      // Reset rate limit on successful login
-      rateLimiter.reset(endpoint);
-      setRateLimitInfo({
-        remainingAttempts: 5,
-        isLimited: false,
-        waitTime: 0
-      });
-      
+      // Login successful
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
+      
+      // Reset rate limiter on success
+      rateLimiter.resetAttempts();
+      
       navigate('/welcome');
+      
     } catch (error) {
-      if (error.rateLimited) {
+      // Handle different error types
+      if (error.isRateLimited) {
+        // Rate limit error
         setError(error.message);
-        setRateLimitInfo({
-          remainingAttempts: 0,
-          isLimited: true,
-          waitTime: error.waitTime || 15
-        });
+        setIsBlocked(true);
+        setWaitMinutes(error.waitMinutes || 5);
       } else if (error.response) {
-        const { data } = error.response;
+        // Server responded with error
+        const { status, data } = error.response;
         
-        if (data.errors) {
-          // Validation errors
-          const errorMessages = data.errors.map(err => err.message).join(', ');
-          setError(errorMessages);
+        if (status === 401) {
+          // Invalid credentials - record failed attempt
+          setError('Invalid username/email or password');
+          rateLimiter.recordFailedAttempt();
+          
+          // Update remaining attempts
+          const remaining = rateLimiter.getRemainingAttempts();
+          setRemainingAttempts(remaining);
+          
+          // Check if now blocked
+          const checkAgain = rateLimiter.canTry();
+          if (!checkAgain.allowed) {
+            setIsBlocked(true);
+            setWaitMinutes(checkAgain.waitMinutes);
+            setError(`Too many failed attempts! Please wait ${checkAgain.waitMinutes} minutes.`);
+          }
         } else if (data.message) {
           setError(data.message);
+        } else {
+          setError('Login failed. Please try again.');
         }
-        
-        // Record failed attempt
-        rateLimiter.recordAttempt(endpoint);
-        const remaining = rateLimiter.getRemainingAttempts(endpoint);
-        setRateLimitInfo(prev => ({
-          ...prev,
-          remainingAttempts: remaining
-        }));
       } else if (error.request) {
-        setError('Network error. Please check your connection.');
+        setError('Network error. Cannot connect to server.');
       } else {
-        setError('An error occurred. Please try again.');
+        setError('Something went wrong. Please try again.');
       }
     } finally {
       setIsLoading(false);
@@ -121,24 +115,26 @@ const SignIn = () => {
       <div className="max-w-md w-full bg-white rounded-lg shadow p-8">
         <h2 className="text-2xl font-bold text-center mb-6">Sign In</h2>
         
-        {/* Rate limit warning */}
-        {rateLimitInfo.isLimited && (
+        {/* Blocked warning */}
+        {isBlocked && (
           <Alert 
             type="warning" 
-            message={`Rate limit reached. Please wait ${rateLimitInfo.waitTime} minutes before trying again.`}
+            message={`Too many attempts! Please wait ${waitMinutes} minute${waitMinutes !== 1 ? 's' : ''} before trying again.`}
             onClose={() => {}}
           />
         )}
         
-        {!rateLimitInfo.isLimited && rateLimitInfo.remainingAttempts <= 2 && (
+        {/* Remaining attempts warning */}
+        {!isBlocked && remainingAttempts <= 2 && remainingAttempts > 0 && (
           <Alert 
             type="warning" 
-            message={`Warning: Only ${rateLimitInfo.remainingAttempts} login attempts remaining. Too many failed attempts will temporarily block login.`}
+            message={`Warning: ${remainingAttempts} attempt${remainingAttempts === 1 ? '' : 's'} remaining. After ${remainingAttempts} more failure${remainingAttempts === 1 ? '' : 's'}, you'll be blocked for 5 minutes.`}
             onClose={() => {}}
           />
         )}
         
-        {error && (
+        {/* Error message */}
+        {error && !error.includes('attempts') && !error.includes('Too many') && (
           <Alert type="error" message={error} onClose={() => setError('')} />
         )}
 
@@ -153,9 +149,9 @@ const SignIn = () => {
               required
               value={formData.identifier}
               onChange={handleChange}
-              disabled={isLoading || rateLimitInfo.isLimited}
+              disabled={isLoading || isBlocked}
               className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${
-                (isLoading || rateLimitInfo.isLimited) ? 'bg-gray-100 cursor-not-allowed' : ''
+                (isLoading || isBlocked) ? 'bg-gray-100 cursor-not-allowed' : ''
               }`}
               placeholder="Enter username, email, or phone"
             />
@@ -169,9 +165,9 @@ const SignIn = () => {
               required
               value={formData.password}
               onChange={handleChange}
-              disabled={isLoading || rateLimitInfo.isLimited}
+              disabled={isLoading || isBlocked}
               className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${
-                (isLoading || rateLimitInfo.isLimited) ? 'bg-gray-100 cursor-not-allowed' : ''
+                (isLoading || isBlocked) ? 'bg-gray-100 cursor-not-allowed' : ''
               }`}
               placeholder="Enter your password"
             />
@@ -179,11 +175,11 @@ const SignIn = () => {
 
           <button
             type="submit"
-            disabled={isLoading || rateLimitInfo.isLimited}
+            disabled={isLoading || isBlocked}
             className="w-full bg-green-600 text-white py-3 rounded hover:bg-green-700 disabled:bg-green-300 disabled:cursor-not-allowed font-medium"
           >
             {isLoading ? 'Signing in...' : 
-             rateLimitInfo.isLimited ? `Please wait ${rateLimitInfo.waitTime} minutes` : 
+             isBlocked ? `Please wait ${waitMinutes} min` : 
              'Sign In'}
           </button>
         </form>
@@ -193,7 +189,6 @@ const SignIn = () => {
           <button
             onClick={() => navigate('/signup')}
             className="text-blue-600 hover:underline"
-            disabled={isLoading}
           >
             Sign Up
           </button>

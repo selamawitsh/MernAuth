@@ -1,56 +1,55 @@
-class RateLimiter {
-  constructor() {
-    this.attempts = new Map();
-    this.maxAttempts = 5;
-    this.timeWindow = 5 * 60 * 1000; 
-  }
+let failedAttempts = []; 
+const MAX_ATTEMPTS = 5; 
+const TIME_WINDOW = 5 * 60 * 1000; 
 
-  // Check if request is allowed
-  isAllowed(endpoint) {
-    const now = Date.now();
-    const attempts = this.attempts.get(endpoint) || [];
-    
-    // Filter attempts within time window
-    const recentAttempts = attempts.filter(time => now - time < this.timeWindow);
-    
-    if (recentAttempts.length >= this.maxAttempts) {
-      const oldestAttempt = recentAttempts[0];
-      const waitTime = Math.ceil((this.timeWindow - (now - oldestAttempt)) / 1000 / 60);
-      return {
-        allowed: false,
-        waitTime: waitTime,
-        remainingAttempts: 0
-      };
-    }
-    
-    return {
-      allowed: true,
-      remainingAttempts: this.maxAttempts - recentAttempts.length,
-      waitTime: 0
-    };
-  }
-
-  // Record an attempt
-  recordAttempt(endpoint) {
-    const now = Date.now();
-    const attempts = this.attempts.get(endpoint) || [];
-    const filteredAttempts = attempts.filter(time => now - time < this.timeWindow);
-    filteredAttempts.push(now);
-    this.attempts.set(endpoint, filteredAttempts);
-  }
-
-  // Reset attempts for an endpoint
-  reset(endpoint) {
-    this.attempts.delete(endpoint);
-  }
-
-  // Get remaining attempts
-  getRemainingAttempts(endpoint) {
-    const now = Date.now();
-    const attempts = this.attempts.get(endpoint) || [];
-    const recentAttempts = attempts.filter(time => now - time < this.timeWindow);
-    return Math.max(0, this.maxAttempts - recentAttempts.length);
-  }
+// Get attempts from last 5 minutes
+function getRecentAttempts() {
+  const now = Date.now();
+  return failedAttempts.filter(time => now - time < TIME_WINDOW);
 }
 
-export default new RateLimiter();
+// Check if user can try to login/register
+export function canTry() {
+  const recentAttempts = getRecentAttempts();
+  
+  // If 5 or more attempts in last 5 minutes, block
+  if (recentAttempts.length >= MAX_ATTEMPTS) {
+    const oldestAttempt = Math.min(...recentAttempts);
+    const now = Date.now();
+    const timePassed = now - oldestAttempt;
+    const timeRemaining = TIME_WINDOW - timePassed;
+    const minutesLeft = Math.ceil(timeRemaining / 1000 / 60);
+    
+    return {
+      allowed: false,
+      waitMinutes: minutesLeft,
+      remaining: 0
+    };
+  }
+  
+  // User can try
+  return {
+    allowed: true,
+    waitMinutes: 0,
+    remaining: MAX_ATTEMPTS - recentAttempts.length
+  };
+}
+
+// Record a failed attempt
+export function recordFailedAttempt() {
+  const now = Date.now();
+  const recentAttempts = getRecentAttempts();
+  recentAttempts.push(now);
+  failedAttempts = recentAttempts;
+}
+
+// Reset attempts (when login succeeds)
+export function resetAttempts() {
+  failedAttempts = [];
+}
+
+// Get remaining attempts count
+export function getRemainingAttempts() {
+  const recentAttempts = getRecentAttempts();
+  return Math.max(0, MAX_ATTEMPTS - recentAttempts.length);
+}
