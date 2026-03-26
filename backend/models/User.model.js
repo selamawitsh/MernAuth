@@ -8,7 +8,6 @@ const userSchema = new mongoose.Schema({
   },
   grandfatherName: {
     type: String,
-    required: [true, 'Grandfather name is required'],
     trim: true
   },
   username: {
@@ -20,8 +19,6 @@ const userSchema = new mongoose.Schema({
   },
   phoneNumber: {
     type: String,
-    required: [true, 'Phone number is required'],
-    unique: true,
     trim: true
   },
   email: {
@@ -33,18 +30,30 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: [true, 'Password is required']
+    default: null  // Allow null for OAuth users
   },
   location: {
     type: String,
-    required: [true, 'Location is required'],
     trim: true
   },
   birthDate: {
-    type: Date,
-    required: [true, 'Birth date is required']
+    type: Date
   },
-  // Email verification fields
+  // OAuth fields
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true  // Allows multiple null values
+  },
+  provider: {
+    type: String,
+    enum: ['local', 'google'],
+    default: 'local'
+  },
+  avatar: {
+    type: String,
+    default: null
+  },
   isEmailVerified: {
     type: Boolean,
     default: false

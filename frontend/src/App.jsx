@@ -5,8 +5,9 @@ import SignIn from './components/SignIn';
 import Welcome from './components/Welcome';
 import VerifyEmail from './components/VerifyEmail';
 import VerifyEmailPending from './components/VerifyEmailPending';
-import ForgotPassword from './components/ForgotPassword'; 
-import ResetPassword from './components/ResetPassword'; 
+import ForgotPassword from './components/ForgotPassword';
+import ResetPassword from './components/ResetPassword';
+import OAuthSuccess from './components/OAuthSuccess'; 
 
 function App() {
   const isAuthenticated = () => {
@@ -32,6 +33,9 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         
+        {/* NEW: OAuth success route */}
+        <Route path="/oauth-success" element={<OAuthSuccess />} />
+        
         {/* Protected route */}
         <Route 
           path="/welcome" 
@@ -40,6 +44,7 @@ function App() {
           } 
         />
         
+        {/* Catch all - redirect to login */}
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     </BrowserRouter>
