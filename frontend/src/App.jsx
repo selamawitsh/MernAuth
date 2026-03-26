@@ -3,24 +3,40 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import SignUp from './components/SignUP.jsx';
 import SignIn from './components/SignIn.jsx';
 import Welcome from './components/Welcome.jsx';
+import VerifyEmail from './components/VerifyEmail.jsx';
+import VerifyEmailPending from './components/VerifyEmailPending.jsx';
 
 function App() {
+  // Simplified authentication check - just check if token exists
   const isAuthenticated = () => {
-    return localStorage.getItem('token') !== null;
+    const token = localStorage.getItem('token');
+    return token !== null;
   };
 
   return (
     <BrowserRouter>
       <Routes>
+        {/* Redirect root to login */}
         <Route path="/" element={<Navigate to="/login" />} />
+        
+        {/* Auth routes */}
         <Route path="/signup" element={<SignUp />} />
         <Route path="/login" element={<SignIn />} />
+        
+        {/* Email verification routes */}
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/verify-email-pending" element={<VerifyEmailPending />} />
+        
+        {/* Protected route */}
         <Route 
           path="/welcome" 
           element={
             isAuthenticated() ? <Welcome /> : <Navigate to="/login" />
           } 
         />
+        
+        {/* Catch all - redirect to login */}
+        <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     </BrowserRouter>
   );

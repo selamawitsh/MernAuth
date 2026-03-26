@@ -17,8 +17,9 @@ const SignIn = () => {
   const [remainingAttempts, setRemainingAttempts] = useState(5);
   const [isBlocked, setIsBlocked] = useState(false);
   const [waitMinutes, setWaitMinutes] = useState(0);
+  const [showResendOption, setShowResendOption] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState('');
 
-  // Check rate limit on component mount and every 30 seconds
   useEffect(() => {
     const checkLimit = () => {
       const check = rateLimiter.canTry();
@@ -28,8 +29,7 @@ const SignIn = () => {
     };
     
     checkLimit();
-    const interval = setInterval(checkLimit, 30000); // Check every 30 seconds
-    
+    const interval = setInterval(checkLimit, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -39,12 +39,26 @@ const SignIn = () => {
       [e.target.name]: e.target.value
     });
     if (error) setError('');
+    setShowResendOption(false);
+  };
+
+  const handleResendVerification = async () => {
+    try {
+      const response = await api.post('/auth/resend-verification', { email: unverifiedEmail });
+      setError(response.data.message);
+      setShowResendOption(false);
+    } catch (err) {
+      if (err.response) {
+        setError(err.response.data.message);
+      } else {
+        setError('Failed to resend verification email. Please try again.');
+      }
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Check rate limit before submitting
     const check = rateLimiter.canTry();
     if (!check.allowed) {
       setError(`Too many attempts! Please wait ${check.waitMinutes} minutes.`);
@@ -55,40 +69,45 @@ const SignIn = () => {
 
     setIsLoading(true);
     setError('');
+    setShowResendOption(false);
 
     try {
       const response = await api.post('/auth/login', formData);
       
-      // Login successful
+      console.log('Login response:', response.data); // Debug log
+      
+      // Store token and user
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       
-      // Reset rate limiter on success
+      console.log('Token stored:', localStorage.getItem('token'));
+      console.log('User stored:', localStorage.getItem('user'));
+      
       rateLimiter.resetAttempts();
       
-      navigate('/welcome');
+      window.location.href = '/welcome';
       
     } catch (error) {
-      // Handle different error types
+      console.error('Login error:', error);
+      
       if (error.isRateLimited) {
-        // Rate limit error
         setError(error.message);
         setIsBlocked(true);
         setWaitMinutes(error.waitMinutes || 5);
       } else if (error.response) {
-        // Server responded with error
         const { status, data } = error.response;
         
-        if (status === 401) {
-          // Invalid credentials - record failed attempt
+        if (status === 403 && data.requiresVerification) {
+          setError(data.message);
+          setUnverifiedEmail(data.email);
+          setShowResendOption(true);
+        } else if (status === 401) {
           setError('Invalid username/email or password');
           rateLimiter.recordFailedAttempt();
           
-          // Update remaining attempts
           const remaining = rateLimiter.getRemainingAttempts();
           setRemainingAttempts(remaining);
           
-          // Check if now blocked
           const checkAgain = rateLimiter.canTry();
           if (!checkAgain.allowed) {
             setIsBlocked(true);
@@ -115,7 +134,6 @@ const SignIn = () => {
       <div className="max-w-md w-full bg-white rounded-lg shadow p-8">
         <h2 className="text-2xl font-bold text-center mb-6">Sign In</h2>
         
-        {/* Blocked warning */}
         {isBlocked && (
           <Alert 
             type="warning" 
@@ -124,7 +142,6 @@ const SignIn = () => {
           />
         )}
         
-        {/* Remaining attempts warning */}
         {!isBlocked && remainingAttempts <= 2 && remainingAttempts > 0 && (
           <Alert 
             type="warning" 
@@ -133,9 +150,19 @@ const SignIn = () => {
           />
         )}
         
-        {/* Error message */}
         {error && !error.includes('attempts') && !error.includes('Too many') && (
           <Alert type="error" message={error} onClose={() => setError('')} />
+        )}
+        
+        {showResendOption && (
+          <div className="mt-2 text-center">
+            <button
+              onClick={handleResendVerification}
+              className="text-blue-600 text-sm hover:underline"
+            >
+              Resend verification email
+            </button>
+          </div>
         )}
 
         <form onSubmit={handleSubmit}>

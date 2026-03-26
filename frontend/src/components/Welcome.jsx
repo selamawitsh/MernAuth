@@ -4,35 +4,61 @@ import { useNavigate } from 'react-router-dom';
 const Welcome = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('Welcome page loaded');
+    
     // Get user data from storage
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
     
-    // If no token or user, go to login
+    console.log('Token exists:', !!token);
+    console.log('User data exists:', !!userData);
+    
     if (!token || !userData) {
+      console.log('No token or user, redirecting to login');
       navigate('/login');
       return;
     }
     
-    // Get user info
-    const userInfo = JSON.parse(userData);
-    setUser(userInfo);
+    try {
+      // Get user info
+      const userInfo = JSON.parse(userData);
+      console.log('User info loaded:', userInfo);
+      setUser(userInfo);
+    } catch (error) {
+      console.error('Error parsing user data:', error);
+      navigate('/login');
+    } finally {
+      setLoading(false);
+    }
   }, [navigate]);
 
   // Logout function
   const handleLogout = () => {
+    console.log('Logging out...');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     navigate('/login');
   };
 
   // Show loading message
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-xl text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <p className="text-xl">Loading...</p>
+        <p className="text-xl text-red-600">Error loading user data. Please login again.</p>
       </div>
     );
   }
@@ -42,12 +68,14 @@ const Welcome = () => {
       <div className="max-w-2xl mx-auto">
         {/* Welcome Card */}
         <div className="bg-white rounded-lg shadow p-8">
-          <h1 className="text-3xl font-bold text-center mb-2">
-            Welcome, {user.fullName}!
-          </h1>
-          <p className="text-center text-gray-600 mb-8">
-            You are now logged in
-          </p>
+          <div className="text-center mb-6">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Welcome, {user.fullName}!
+            </h1>
+            <p className="text-gray-600">
+              You are now logged in to your account
+            </p>
+          </div>
           
           {/* User Information */}
           <div className="border-t pt-6">
@@ -69,7 +97,7 @@ const Welcome = () => {
           {/* Logout Button */}
           <button
             onClick={handleLogout}
-            className="mt-8 w-full bg-red-600 text-white py-2 rounded hover:bg-red-700"
+            className="mt-8 w-full bg-red-600 text-white py-2 rounded hover:bg-red-700 transition duration-200"
           >
             Logout
           </button>

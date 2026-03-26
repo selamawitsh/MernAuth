@@ -25,7 +25,6 @@ const SignUp = () => {
   const [isBlocked, setIsBlocked] = useState(false);
   const [waitMinutes, setWaitMinutes] = useState(0);
 
-  // Check rate limit on component mount and every 30 seconds
   useEffect(() => {
     const checkLimit = () => {
       const check = rateLimiter.canTry();
@@ -35,8 +34,6 @@ const SignUp = () => {
     };
     
     checkLimit();
-    
-    // Check every 30 seconds for countdown updates
     const interval = setInterval(checkLimit, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -47,7 +44,6 @@ const SignUp = () => {
       [e.target.name]: e.target.value
     });
     
-    // Clear error for this field when user starts typing
     if (errors[e.target.name]) {
       setErrors({
         ...errors,
@@ -55,7 +51,6 @@ const SignUp = () => {
       });
     }
     
-    // Clear general error when user types
     if (generalError) {
       setGeneralError('');
     }
@@ -64,7 +59,6 @@ const SignUp = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Check rate limit before making request
     const check = rateLimiter.canTry();
     
     if (!check.allowed) {
@@ -81,45 +75,41 @@ const SignUp = () => {
     try {
       const response = await api.post('/auth/register', formData);
       
-      // Registration successful
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      // Store email for resend functionality
+      localStorage.setItem('pendingVerificationEmail', formData.email);
       
       // Reset rate limiter on success
       rateLimiter.resetAttempts();
       
-      navigate('/welcome');
+      // Navigate to pending verification page
+      navigate('/verify-email-pending', { 
+        state: { 
+          email: formData.email,
+          message: response.data.message 
+        } 
+      });
       
     } catch (error) {
-      // Handle different error types
       if (error.isRateLimited) {
-        // Rate limit error from server
         setGeneralError(error.message);
         setIsBlocked(true);
         setWaitMinutes(error.waitMinutes || 5);
       } else if (error.response) {
-        // Server responded with error - removed unused 'status' variable
         const { data } = error.response;
         
         if (data.errors) {
-          // Validation errors
           const fieldErrors = {};
           data.errors.forEach(err => {
             fieldErrors[err.field] = err.message;
           });
           setErrors(fieldErrors);
         } else if (data.message) {
-          // General error like duplicate user
           setGeneralError(data.message);
-          
-          // Record failed attempt for registration errors
           rateLimiter.recordFailedAttempt();
           
-          // Update remaining attempts
           const remaining = rateLimiter.getRemainingAttempts();
           setRemainingAttempts(remaining);
           
-          // Check if now blocked
           const checkAgain = rateLimiter.canTry();
           if (!checkAgain.allowed) {
             setIsBlocked(true);
@@ -128,10 +118,8 @@ const SignUp = () => {
           }
         }
       } else if (error.request) {
-        // Request made but no response
         setGeneralError('Network error. Cannot connect to server. Please check your connection.');
       } else {
-        // Other errors
         setGeneralError('Something went wrong. Please try again.');
       }
     } finally {
@@ -144,7 +132,6 @@ const SignUp = () => {
       <div className="max-w-2xl mx-auto bg-white rounded-lg shadow p-8">
         <h2 className="text-2xl font-bold text-center mb-6">Create Account</h2>
 
-        {/* Blocked warning */}
         {isBlocked && (
           <Alert 
             type="warning" 
@@ -153,7 +140,6 @@ const SignUp = () => {
           />
         )}
         
-        {/* Remaining attempts warning */}
         {!isBlocked && remainingAttempts <= 2 && remainingAttempts > 0 && (
           <Alert 
             type="warning" 
@@ -162,7 +148,6 @@ const SignUp = () => {
           />
         )}
 
-        {/* General error message */}
         {generalError && !generalError.includes('attempts') && (
           <Alert 
             type="error" 
@@ -173,7 +158,6 @@ const SignUp = () => {
 
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Full Name */}
             <div>
               <label className="block text-gray-700 mb-2">Full Name *</label>
               <input
@@ -192,7 +176,6 @@ const SignUp = () => {
               )}
             </div>
 
-            {/* Grandfather Name */}
             <div>
               <label className="block text-gray-700 mb-2">Grandfather Name *</label>
               <input
@@ -211,7 +194,6 @@ const SignUp = () => {
               )}
             </div>
 
-            {/* Username */}
             <div>
               <label className="block text-gray-700 mb-2">Username *</label>
               <input
@@ -230,7 +212,6 @@ const SignUp = () => {
               )}
             </div>
 
-            {/* Phone Number */}
             <div>
               <label className="block text-gray-700 mb-2">Phone Number *</label>
               <input
@@ -249,7 +230,6 @@ const SignUp = () => {
               )}
             </div>
 
-            {/* Email */}
             <div>
               <label className="block text-gray-700 mb-2">Email *</label>
               <input
@@ -268,7 +248,6 @@ const SignUp = () => {
               )}
             </div>
 
-            {/* Password */}
             <div>
               <label className="block text-gray-700 mb-2">Password *</label>
               <input
@@ -290,7 +269,6 @@ const SignUp = () => {
               </p>
             </div>
 
-            {/* Location */}
             <div>
               <label className="block text-gray-700 mb-2">Location *</label>
               <input
@@ -309,7 +287,6 @@ const SignUp = () => {
               )}
             </div>
 
-            {/* Birth Date */}
             <div>
               <label className="block text-gray-700 mb-2">Birth Date *</label>
               <input
