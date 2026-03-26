@@ -74,7 +74,7 @@ const SignIn = () => {
     try {
       const response = await api.post('/auth/login', formData);
       
-      console.log('Login response:', response.data); // Debug log
+      console.log('Login response:', response.data);
       
       // Store token and user
       localStorage.setItem('token', response.data.token);
@@ -198,6 +198,17 @@ const SignIn = () => {
               }`}
               placeholder="Enter your password"
             />
+            {/* Forgot Password Link - NEW */}
+            <div className="mt-2 text-right">
+              <button
+                type="button"
+                onClick={() => navigate('/forgot-password')}
+                className="text-sm text-blue-600 hover:underline"
+                disabled={isLoading || isBlocked}
+              >
+                Forgot Password?
+              </button>
+            </div>
           </div>
 
           <button
@@ -216,6 +227,7 @@ const SignIn = () => {
           <button
             onClick={() => navigate('/signup')}
             className="text-blue-600 hover:underline"
+            disabled={isLoading}
           >
             Sign Up
           </button>

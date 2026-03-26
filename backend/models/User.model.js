@@ -44,6 +44,7 @@ const userSchema = new mongoose.Schema({
     type: Date,
     required: [true, 'Birth date is required']
   },
+  // Email verification fields
   isEmailVerified: {
     type: Boolean,
     default: false
@@ -55,12 +56,21 @@ const userSchema = new mongoose.Schema({
   emailVerificationExpires: {
     type: Date,
     default: null
+  },
+  resetPasswordToken: {
+    type: String,
+    default: null
+  },
+  resetPasswordExpires: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true
 });
 
 userSchema.index({ emailVerificationToken: 1 });
+userSchema.index({ resetPasswordToken: 1 });
 
 const User = mongoose.model('User', userSchema);
 

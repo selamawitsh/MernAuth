@@ -1,13 +1,14 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import SignUp from './components/SignUP.jsx';
-import SignIn from './components/SignIn.jsx';
-import Welcome from './components/Welcome.jsx';
-import VerifyEmail from './components/VerifyEmail.jsx';
-import VerifyEmailPending from './components/VerifyEmailPending.jsx';
+import SignUp from './components/SignUP';
+import SignIn from './components/SignIn';
+import Welcome from './components/Welcome';
+import VerifyEmail from './components/VerifyEmail';
+import VerifyEmailPending from './components/VerifyEmailPending';
+import ForgotPassword from './components/ForgotPassword'; 
+import ResetPassword from './components/ResetPassword'; 
 
 function App() {
-  // Simplified authentication check - just check if token exists
   const isAuthenticated = () => {
     const token = localStorage.getItem('token');
     return token !== null;
@@ -27,6 +28,10 @@ function App() {
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/verify-email-pending" element={<VerifyEmailPending />} />
         
+        {/* Password reset routes */}
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        
         {/* Protected route */}
         <Route 
           path="/welcome" 
@@ -35,7 +40,6 @@ function App() {
           } 
         />
         
-        {/* Catch all - redirect to login */}
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     </BrowserRouter>

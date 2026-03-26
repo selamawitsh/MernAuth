@@ -3,7 +3,9 @@ import {
   register, 
   login, 
   verifyEmail,
-  resendVerificationEmail 
+  resendVerificationEmail,
+  forgotPassword,
+  resetPassword
 } from '../controllers/auth.controller.js';
 import { 
   validateRegister, 
@@ -13,14 +15,16 @@ import {
 
 const router = express.Router();
 
-// Register
+// Authentication routes
 router.post('/register', validateRegister, handleValidationErrors, register);
-
-// Login 
 router.post('/login', validateLogin, handleValidationErrors, login);
 
-// Email verification
+// Email verification routes
 router.post('/verify-email', verifyEmail);
 router.post('/resend-verification', resendVerificationEmail);
+
+// Password reset routes
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPassword);
 
 export default router;
