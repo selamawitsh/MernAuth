@@ -108,7 +108,7 @@ export const sendVerificationEmail = async (user, token) => {
       <body>
         <div class="container">
           <div class="header">
-            <h1>Welcome ${user.fullName}! 🎉</h1>
+            <h1>Welcome ${user.fullName}!</h1>
           </div>
           <div class="content">
             <p>Thank you for registering with us!</p>
@@ -136,10 +136,10 @@ export const sendVerificationEmail = async (user, token) => {
   try {
     const transporter = createTransporter();
     await transporter.sendMail(mailOptions);
-    console.log('✅ Verification email sent to:', user.email);
+    console.log('verification email sent to:', user.email);
     return { success: true };
   } catch (error) {
-    console.error('❌ Error sending email:', error.message);
+    console.error('Error sending email:', error.message);
     return { success: false, error: error.message };
   }
 };

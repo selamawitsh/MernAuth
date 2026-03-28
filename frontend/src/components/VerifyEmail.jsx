@@ -49,8 +49,6 @@ const VerifyEmail = () => {
   const handleResendVerification = async () => {
     setIsLoading(true);
     try {
-      // You would need to get email from somewhere (maybe from URL or state)
-      // For now, we'll show a message
       setMessage('Please enter your email in the form below to resend verification.');
     } catch (error) {
       setMessage('Failed to resend verification email.');
@@ -83,7 +81,7 @@ const VerifyEmail = () => {
           
           {status === 'error' && (
             <div>
-              <div className="text-red-600 text-6xl mb-4">⚠️</div>
+              <div className="text-red-600 text-6xl mb-4"></div>
               <Alert type="error" message={message} onClose={() => {}} />
               
               <button

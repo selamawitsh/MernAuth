@@ -105,6 +105,7 @@ export const verifyEmail = async (req, res) => {
     user.isEmailVerified = true;
     user.emailVerificationToken = null;
     user.emailVerificationExpires = null;
+    
     await user.save();
 
     await sendWelcomeEmail(user);

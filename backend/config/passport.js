@@ -33,7 +33,6 @@ export const configurePassport = () => {
           let user = await User.findOne({ googleId: profile.id });
           
           if (user) {
-            // User exists with Google ID
             return done(null, user);
           }
           
@@ -41,11 +40,10 @@ export const configurePassport = () => {
           user = await User.findOne({ email: profile.emails[0].value });
           
           if (user) {
-            // User exists with email but not Google ID - link accounts
             user.googleId = profile.id;
             user.provider = 'google';
             user.avatar = profile.photos[0]?.value || null;
-            user.isEmailVerified = true; // Google emails are verified
+            user.isEmailVerified = true;
             await user.save();
             return done(null, user);
           }
@@ -61,8 +59,8 @@ export const configurePassport = () => {
             googleId: profile.id,
             provider: 'google',
             avatar: profile.photos[0]?.value || null,
-            isEmailVerified: true, // Google emails are verified
-            password: null, // No password for OAuth users
+            isEmailVerified: true, 
+            password: null, 
             location: '',
             birthDate: null
           });
