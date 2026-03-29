@@ -1,6 +1,7 @@
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import User from '../models/User.model.js';
+import { Op } from 'sequelize';
 
 export const configurePassport = () => {
   passport.serializeUser((user, done) => {
@@ -9,14 +10,13 @@ export const configurePassport = () => {
 
   passport.deserializeUser(async (id, done) => {
     try {
-      const user = await User.findById(id);
+      const user = await User.findByPk(id);
       done(null, user);
     } catch (error) {
       done(error, null);
     }
   });
 
-  // Google OAuth Strategy
   passport.use(
     new GoogleStrategy(
       {
@@ -27,17 +27,13 @@ export const configurePassport = () => {
       },
       async (accessToken, refreshToken, profile, done) => {
         try {
-          console.log('Google profile:', profile);
-          
-          // Check if user already exists with googleId
-          let user = await User.findOne({ googleId: profile.id });
+          let user = await User.findOne({ where: { googleId: profile.id } });
           
           if (user) {
             return done(null, user);
           }
           
-          // Check if user exists with same email
-          user = await User.findOne({ email: profile.emails[0].value });
+          user = await User.findOne({ where: { email: profile.emails[0].value } });
           
           if (user) {
             user.googleId = profile.id;
@@ -48,7 +44,6 @@ export const configurePassport = () => {
             return done(null, user);
           }
           
-          // Create new user
           const username = profile.emails[0].value.split('@')[0] + 
                           Math.floor(Math.random() * 1000);
           
@@ -59,14 +54,11 @@ export const configurePassport = () => {
             googleId: profile.id,
             provider: 'google',
             avatar: profile.photos[0]?.value || null,
-            isEmailVerified: true, 
-            password: null, 
-            location: '',
-            birthDate: null
+            isEmailVerified: true,
+            password: null
           });
           
           return done(null, user);
-          
         } catch (error) {
           console.error('Google OAuth error:', error);
           return done(error, null);

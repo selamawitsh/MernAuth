@@ -1,86 +1,121 @@
-import mongoose from 'mongoose';
+import { DataTypes } from 'sequelize';
+import sequelize from '../config/database.js';
+import bcrypt from 'bcryptjs';
 
-const userSchema = new mongoose.Schema({
-  fullName: {
-    type: String,
-    required: [true, 'Full name is required'],
-    trim: true
+const User = sequelize.define('User', {
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
   },
+  fullName: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    validate: {
+      notEmpty: true,
+      len: [2, 100]
+    }
+  },
+
   grandfatherName: {
-    type: String,
-    trim: true
+    type: DataTypes.STRING,
+    allowNull: true
   },
   username: {
-    type: String,
-    required: [true, 'Username is required'],
+    type: DataTypes.STRING,
+    allowNull: false,
     unique: true,
-    lowercase: true,
-    trim: true
+    validate: {
+      notEmpty: true,
+      len: [3, 50]
+    }
   },
   phoneNumber: {
-    type: String,
-    trim: true
+    type: DataTypes.STRING,
+    allowNull: true,
+    unique: true
   },
   email: {
-    type: String,
-    required: [true, 'Email is required'],
+    type: DataTypes.STRING,
+    allowNull: false,
     unique: true,
-    lowercase: true,
-    trim: true
+    validate: {
+      isEmail: true,
+      notEmpty: true
+    }
   },
   password: {
-    type: String,
-    default: null  // Allow null for OAuth users
+    type: DataTypes.STRING,
+    allowNull: true
   },
   location: {
-    type: String,
-    trim: true
+    type: DataTypes.STRING,
+    allowNull: true
   },
   birthDate: {
-    type: Date
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  // Email verification fields
+  isEmailVerified: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  
+  emailVerificationToken: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  emailVerificationExpires: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  // Password reset fields
+  resetPasswordToken: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  resetPasswordExpires: {
+    type: DataTypes.DATE,
+    allowNull: true
   },
   // OAuth fields
   googleId: {
-    type: String,
-    unique: true,
-    sparse: true  // Allows multiple null values
+    type: DataTypes.STRING,
+    allowNull: true,
+    unique: true
   },
   provider: {
-    type: String,
-    enum: ['local', 'google'],
-    default: 'local'
+    type: DataTypes.ENUM('local', 'google'),
+    defaultValue: 'local'
   },
   avatar: {
-    type: String,
-    default: null
-  },
-  isEmailVerified: {
-    type: Boolean,
-    default: false
-  },
-  emailVerificationToken: {
-    type: String,
-    default: null
-  },
-  emailVerificationExpires: {
-    type: Date,
-    default: null
-  },
-  resetPasswordToken: {
-    type: String,
-    default: null
-  },
-  resetPasswordExpires: {
-    type: Date,
-    default: null
+    type: DataTypes.STRING,
+    allowNull: true
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  tableName: 'users',
+  hooks: {
+    beforeCreate: async (user) => {
+      if (user.password) {
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(user.password, salt);
+      }
+    },
+    beforeUpdate: async (user) => {
+      if (user.changed('password')) {
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(user.password, salt);
+      }
+    }
+  }
 });
 
-userSchema.index({ emailVerificationToken: 1 });
-userSchema.index({ resetPasswordToken: 1 });
-
-const User = mongoose.model('User', userSchema);
+// Instance methods
+User.prototype.comparePassword = async function(password) {
+  if (!this.password) return false;
+  return await bcrypt.compare(password, this.password);
+};
 
 export default User;

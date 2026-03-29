@@ -1,8 +1,8 @@
 import express from 'express';
 import dotenv from 'dotenv';
-import session from 'express-session';  
-import passport from 'passport';     
-import connectDB from './config/db.js';
+import session from 'express-session';
+import passport from 'passport';
+import { connectDB } from './config/database.js';
 import configurePassport from './config/passport.js';
 import authRoutes from './routes/auth.route.js';
 import { 
@@ -14,22 +14,25 @@ import {
   authRateLimiter 
 } from './middleware/security/index.js';
 
+
 dotenv.config();
 
-connectDB();
+// Connect to PostgreSQL
+await connectDB();
 
-// Configure Passport (Google OAuth setup)
+// Configure Passport
 configurePassport();
 
 const app = express();
 
+// Session configuration
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'your-secret-key-change-this',
+  secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production', 
-    maxAge: 24 * 60 * 60 * 1000 
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000
   }
 }));
 
@@ -37,30 +40,36 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
+// Logging middleware
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
   next();
 });
 
+// Security middleware
+app.use(helmetMiddleware);
+app.use(corsMiddleware);
+app.use(generalRateLimiter);
+app.use(...bodyParserMiddleware);
+app.use(mongoSanitizeMiddleware);
 
-// 1. Security headers and CORS
-app.use(helmetMiddleware);           
-app.use(corsMiddleware);             
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    message: 'Server is running',
+    database: 'PostgreSQL',
+    timestamp: new Date().toISOString()
+  });
+});
 
-// 2. Rate limiting (prevents brute force attacks)
-app.use(generalRateLimiter);  
-
-// 3. Body parsing (limits request size)
-app.use(...bodyParserMiddleware);    
-
-// 4. NoSQL injection prevention
-app.use(mongoSanitizeMiddleware);     
-
-
+// Routes
 app.use('/api/auth', authRateLimiter, authRoutes);
+
 
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Database: PostgreSQL`);
 });
