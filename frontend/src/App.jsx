@@ -1,13 +1,14 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import SignUp from './components/SignUP';
-import SignIn from './components/SignIn';
-import Welcome from './components/Welcome';
-import VerifyEmail from './components/VerifyEmail';
-import VerifyEmailPending from './components/VerifyEmailPending';
-import ForgotPassword from './components/ForgotPassword';
-import ResetPassword from './components/ResetPassword';
-import OAuthSuccess from './components/OAuthSuccess'; 
+import SignUp from './components/auth/SignUP';
+import SignIn from './components/auth/SignIn';
+import Tourism from './pages/TourismLanding';
+import VerifyEmail from './components/auth/VerifyEmail';
+import VerifyEmailPending from './components/auth/VerifyEmailPending';
+import ForgotPassword from './components/auth/ForgotPassword';
+import ResetPassword from './components/auth/ResetPassword';
+import OAuthSuccess from './components/auth/OAuthSuccess'; 
+
 
 function App() {
   const isAuthenticated = () => {
@@ -38,14 +39,15 @@ function App() {
         
         {/* Protected route */}
         <Route 
-          path="/welcome" 
+          path="/tourism" 
           element={
-            isAuthenticated() ? <Welcome /> : <Navigate to="/login" />
+            isAuthenticated() ? <Tourism /> : <Navigate to="/login" />
           } 
         />
         
         {/* Catch all - redirect to login */}
         <Route path="*" element={<Navigate to="/login" />} />
+
       </Routes>
     </BrowserRouter>
   );

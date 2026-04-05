@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../services/api';
-import Alert from '../components/Alert';
-import * as rateLimiter from '../services/rateLimiter';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import api from '../../services/api';
+import Alert from './Alert';
+import * as rateLimiter from '../../services/rateLimiter';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 
 const SignUp = () => {
   const navigate = useNavigate();

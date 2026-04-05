@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import api from '../services/api';
+import api from '../../services/api';
 import Alert from './Alert';
-import { Button } from './ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Button } from '../ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 
 const VerifyEmail = () => {
   const [searchParams] = useSearchParams();
@@ -35,7 +35,7 @@ const VerifyEmail = () => {
       
       // Redirect after 3 seconds
       setTimeout(() => {
-        navigate('/welcome');
+        navigate('/tourism');
       }, 2000);
       
     } catch (error) {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert as ShadcnAlert } from './ui/alert';
+import { Alert as ShadcnAlert } from '../ui/alert';
 
 const Alert = ({ type, message, onClose }) => {
   const colors = {
