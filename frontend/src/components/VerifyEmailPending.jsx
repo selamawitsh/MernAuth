@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
 import Alert from './Alert';
+import { Button } from './ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 
 const VerifyEmailPending = () => {
   const navigate = useNavigate();
@@ -40,10 +42,12 @@ const VerifyEmailPending = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center py-12 px-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow p-8">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Verify Your Email</h2>
-          
+      <Card className="max-w-md w-full">
+        <CardHeader className="text-center">
+          <CardTitle>Verify Your Email</CardTitle>
+        </CardHeader>
+        
+        <CardContent>
           <p className="text-gray-600 mb-4">
             We've sent a verification email to:
           </p>
@@ -57,26 +61,27 @@ const VerifyEmailPending = () => {
             <Alert type={messageType} message={message} onClose={() => setMessage('')} />
           )}
           
-          <button
+          <Button
             onClick={handleResendEmail}
             disabled={isResending}
-            className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:bg-blue-300 mb-3"
+            className="w-full mb-3"
           >
             {isResending ? 'Sending...' : 'Resend Verification Email'}
-          </button>
+          </Button>
           
-          <button
+          <Button
             onClick={() => navigate('/login')}
-            className="w-full text-gray-600 py-2 hover:text-gray-800"
+            variant="outline"
+            className="w-full"
           >
             Back to Login
-          </button>
+          </Button>
           
           <p className="text-xs text-gray-500 mt-4">
             Didn't receive the email? Check your spam folder or click "Resend".
           </p>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

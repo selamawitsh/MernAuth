@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import Alert from '../components/Alert';
 import * as rateLimiter from '../services/rateLimiter';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 
 const SignIn = () => {
   const navigate = useNavigate();
@@ -135,148 +139,153 @@ const SignIn = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center py-12 px-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow p-8">
-        <h2 className="text-2xl font-bold text-center mb-6">Sign In</h2>
+      <Card className="max-w-md w-full">
+        <CardHeader>
+          <CardTitle className="text-center">Sign In</CardTitle>
+        </CardHeader>
         
-        {isBlocked && (
-          <Alert 
-            type="warning" 
-            message={`Too many attempts! Please wait ${waitMinutes} minute${waitMinutes !== 1 ? 's' : ''} before trying again.`}
-            onClose={() => {}}
-          />
-        )}
-        
-        {!isBlocked && remainingAttempts <= 2 && remainingAttempts > 0 && (
-          <Alert 
-            type="warning" 
-            message={`Warning: ${remainingAttempts} attempt${remainingAttempts === 1 ? '' : 's'} remaining. After ${remainingAttempts} more failure${remainingAttempts === 1 ? '' : 's'}, you'll be blocked for 5 minutes.`}
-            onClose={() => {}}
-          />
-        )}
-        
-        {error && !error.includes('attempts') && !error.includes('Too many') && (
-          <Alert type="error" message={error} onClose={() => setError('')} />
-        )}
-        
-        {showResendOption && (
-          <div className="mt-2 text-center">
-            <button
-              onClick={handleResendVerification}
-              className="text-blue-600 text-sm hover:underline"
-            >
-              Resend verification email
-            </button>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-gray-700 mb-2">
-              Username / Email / Phone Number
-            </label>
-            <input
-              type="text"
-              name="identifier"
-              required
-              value={formData.identifier}
-              onChange={handleChange}
-              disabled={isLoading || isBlocked}
-              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${
-                (isLoading || isBlocked) ? 'bg-gray-100 cursor-not-allowed' : ''
-              }`}
-              placeholder="Enter username, email, or phone"
+        <CardContent>
+          {isBlocked && (
+            <Alert 
+              type="warning" 
+              message={`Too many attempts! Please wait ${waitMinutes} minute${waitMinutes !== 1 ? 's' : ''} before trying again.`}
+              onClose={() => {}}
             />
-          </div>
-
-          <div className="mb-6">
-            <label className="block text-gray-700 mb-2">Password</label>
-            <input
-              type="password"
-              name="password"
-              required
-              value={formData.password}
-              onChange={handleChange}
-              disabled={isLoading || isBlocked}
-              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${
-                (isLoading || isBlocked) ? 'bg-gray-100 cursor-not-allowed' : ''
-              }`}
-              placeholder="Enter your password"
+          )}
+          
+          {!isBlocked && remainingAttempts <= 2 && remainingAttempts > 0 && (
+            <Alert 
+              type="warning" 
+              message={`Warning: ${remainingAttempts} attempt${remainingAttempts === 1 ? '' : 's'} remaining. After ${remainingAttempts} more failure${remainingAttempts === 1 ? '' : 's'}, you'll be blocked for 5 minutes.`}
+              onClose={() => {}}
             />
-            <div className="mt-2 text-right">
-              <button
-                type="button"
-                onClick={() => navigate('/forgot-password')}
-                className="text-sm text-blue-600 hover:underline"
-                disabled={isLoading || isBlocked}
+          )}
+          
+          {error && !error.includes('attempts') && !error.includes('Too many') && (
+            <Alert type="error" message={error} onClose={() => setError('')} />
+          )}
+          
+          {showResendOption && (
+            <div className="mt-2 text-center">
+              <Button
+                onClick={handleResendVerification}
+                variant="link"
+                className="text-blue-600 text-sm hover:underline"
               >
-                Forgot Password?
-              </button>
+                Resend verification email
+              </Button>
             </div>
-          </div>
+          )}
 
-          <button
-            type="submit"
-            disabled={isLoading || isBlocked}
-            className="w-full bg-green-600 text-white py-3 rounded hover:bg-green-700 disabled:bg-green-300 disabled:cursor-not-allowed font-medium"
-          >
-            {isLoading ? 'Signing in...' : 
-             isBlocked ? `Please wait ${waitMinutes} min` : 
-             'Sign In'}
-          </button>
-        </form>
-
-        {/* Google OAuth Button */}
-        <div className="mt-6">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
+          <form onSubmit={handleSubmit}>
+            <div className="mb-4">
+              <Label className="block text-gray-700 mb-2">
+                Username / Email / Phone Number
+              </Label>
+              <Input
+                type="text"
+                name="identifier"
+                required
+                value={formData.identifier}
+                onChange={handleChange}
+                disabled={isLoading || isBlocked}
+                className="w-full"
+                placeholder="Enter username, email, or phone"
+              />
             </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">Or continue with</span>
-            </div>
-          </div>
 
-          <div className="mt-6">
-            <button
-              type="button"
-              onClick={handleGoogleLogin}
+            <div className="mb-6">
+              <Label className="block text-gray-700 mb-2">Password</Label>
+              <Input
+                type="password"
+                name="password"
+                required
+                value={formData.password}
+                onChange={handleChange}
+                disabled={isLoading || isBlocked}
+                className="w-full"
+                placeholder="Enter your password"
+              />
+              <div className="mt-2 text-right">
+                <Button
+                  type="button"
+                  onClick={() => navigate('/forgot-password')}
+                  variant="link"
+                  className="text-sm text-blue-600 hover:underline"
+                  disabled={isLoading || isBlocked}
+                >
+                  Forgot Password?
+                </Button>
+              </div>
+            </div>
+
+            <Button
+              type="submit"
               disabled={isLoading || isBlocked}
-              className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 text-gray-700 py-2 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200"
+              className="w-full"
+              variant="default"
             >
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                />
-              </svg>
-              Sign in with Google
-            </button>
-          </div>
-        </div>
+              {isLoading ? 'Signing in...' : 
+               isBlocked ? `Please wait ${waitMinutes} min` : 
+               'Sign In'}
+            </Button>
+          </form>
 
-        <p className="mt-6 text-center text-gray-600">
-          Don't have an account?{' '}
-          <button
-            onClick={() => navigate('/signup')}
-            className="text-blue-600 hover:underline font-medium"
-            disabled={isLoading}
-          >
-            Sign Up
-          </button>
-        </p>
-      </div>
+          {/* Google OAuth Button */}
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">Or continue with</span>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <Button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={isLoading || isBlocked}
+                variant="outline"
+                className="w-full flex items-center justify-center gap-3"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                  />
+                </svg>
+                Sign in with Google
+              </Button>
+            </div>
+          </div>
+
+          <p className="mt-6 text-center text-gray-600">
+            Don't have an account?{' '}
+            <Button
+              onClick={() => navigate('/signup')}
+              variant="link"
+              className="text-blue-600 hover:underline font-medium p-0"
+              disabled={isLoading}
+            >
+              Sign Up
+            </Button>
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 };

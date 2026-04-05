@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import Alert from './Alert';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 
 const ResetPassword = () => {
   const [searchParams] = useSearchParams();
@@ -112,116 +116,122 @@ const ResetPassword = () => {
   if (!isValidToken) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center py-12 px-4">
-        <div className="max-w-md w-full bg-white rounded-lg shadow p-8 text-center">
-          <div className="text-red-600 text-5xl mb-4"></div>
-          <h2 className="text-2xl font-bold mb-4">Invalid Reset Link</h2>
-          <p className="text-gray-600 mb-6">
-            The password reset link is invalid or has expired.
-          </p>
-          <button
-            onClick={() => navigate('/forgot-password')}
-            className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
-          >
-            Request New Reset Link
-          </button>
-        </div>
+        <Card className="max-w-md w-full text-center">
+          <CardContent className="p-8">
+            <div className="text-red-600 text-5xl mb-4"></div>
+            <CardTitle className="mb-4">Invalid Reset Link</CardTitle>
+            <p className="text-gray-600 mb-6">
+              The password reset link is invalid or has expired.
+            </p>
+            <Button
+              onClick={() => navigate('/forgot-password')}
+              className="w-full"
+            >
+              Request New Reset Link
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center py-12 px-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow p-8">
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold">Reset Password</h2>
+      <Card className="max-w-md w-full">
+        <CardHeader className="text-center mb-6">
+          <CardTitle>Reset Password</CardTitle>
           <p className="text-gray-600 mt-2">
             Enter your new password below.
           </p>
-        </div>
+        </CardHeader>
 
-        {message && (
-          <Alert type={messageType} message={message} onClose={() => setMessage('')} />
-        )}
+        <CardContent>
+          {message && (
+            <Alert type={messageType} message={message} onClose={() => setMessage('')} />
+          )}
 
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-gray-700 mb-2">New Password</label>
-            <input
-              type="password"
-              name="newPassword"
-              value={formData.newPassword}
-              onChange={handleChange}
-              disabled={isLoading}
-              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${
-                errors.newPassword || errors.length || errors.uppercase || errors.lowercase || errors.number || errors.special
-                  ? 'border-red-500'
-                  : 'border-gray-300'
-              }`}
-              placeholder="Enter new password"
-              required
-            />
-            {errors.newPassword && (
-              <p className="text-red-500 text-sm mt-1">{errors.newPassword}</p>
-            )}
-            <div className="mt-2 text-xs text-gray-500">
-              <p>Password must contain:</p>
-              <ul className="list-disc list-inside ml-2">
-                <li className={formData.newPassword.length >= 8 ? 'text-green-600' : ''}>
-                  At least 8 characters
-                </li>
-                <li className={/[A-Z]/.test(formData.newPassword) ? 'text-green-600' : ''}>
-                  One uppercase letter
-                </li>
-                <li className={/[a-z]/.test(formData.newPassword) ? 'text-green-600' : ''}>
-                  One lowercase letter
-                </li>
-                <li className={/[0-9]/.test(formData.newPassword) ? 'text-green-600' : ''}>
-                  One number
-                </li>
-                <li className={/[!@#$%^&*]/.test(formData.newPassword) ? 'text-green-600' : ''}>
-                  One special character (!@#$%^&*)
-                </li>
-              </ul>
+          <form onSubmit={handleSubmit}>
+            <div className="mb-4">
+              <Label className="block text-gray-700 mb-2">New Password</Label>
+              <Input
+                type="password"
+                name="newPassword"
+                value={formData.newPassword}
+                onChange={handleChange}
+                disabled={isLoading}
+                className={`w-full ${
+                  errors.newPassword || errors.length || errors.uppercase || errors.lowercase || errors.number || errors.special
+                    ? 'border-red-500'
+                    : ''
+                }`}
+                placeholder="Enter new password"
+                required
+              />
+              {errors.newPassword && (
+                <p className="text-red-500 text-sm mt-1">{errors.newPassword}</p>
+              )}
+              <div className="mt-2 text-xs text-gray-500">
+                <p>Password must contain:</p>
+                <ul className="list-disc list-inside ml-2">
+                  <li className={formData.newPassword.length >= 8 ? 'text-green-600' : ''}>
+                    At least 8 characters
+                  </li>
+                  <li className={/[A-Z]/.test(formData.newPassword) ? 'text-green-600' : ''}>
+                    One uppercase letter
+                  </li>
+                  <li className={/[a-z]/.test(formData.newPassword) ? 'text-green-600' : ''}>
+                    One lowercase letter
+                  </li>
+                  <li className={/[0-9]/.test(formData.newPassword) ? 'text-green-600' : ''}>
+                    One number
+                  </li>
+                  <li className={/[!@#$%^&*]/.test(formData.newPassword) ? 'text-green-600' : ''}>
+                    One special character (!@#$%^&*)
+                  </li>
+                </ul>
+              </div>
             </div>
-          </div>
 
-          <div className="mb-6">
-            <label className="block text-gray-700 mb-2">Confirm Password</label>
-            <input
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
+            <div className="mb-6">
+              <Label className="block text-gray-700 mb-2">Confirm Password</Label>
+              <Input
+                type="password"
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                disabled={isLoading}
+                className={`w-full ${
+                  errors.confirmPassword ? 'border-red-500' : ''
+                }`}
+                placeholder="Confirm new password"
+                required
+              />
+              {errors.confirmPassword && (
+                <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>
+              )}
+            </div>
+
+            <Button
+              type="submit"
               disabled={isLoading}
-              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500 ${
-                errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
-              }`}
-              placeholder="Confirm new password"
-              required
-            />
-            {errors.confirmPassword && (
-              <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 disabled:bg-green-300"
-          >
-            {isLoading ? 'Resetting...' : 'Reset Password'}
-          </button>
-
-          <div className="mt-4 text-center">
-            <button
-              onClick={() => navigate('/login')}
-              className="text-blue-600 hover:underline text-sm"
+              className="w-full"
+              variant="default"
             >
-              Back to Login
-            </button>
-          </div>
-        </form>
-      </div>
+              {isLoading ? 'Resetting...' : 'Reset Password'}
+            </Button>
+
+            <div className="mt-4 text-center">
+              <Button
+                onClick={() => navigate('/login')}
+                variant="link"
+                className="text-blue-600 hover:underline text-sm"
+              >
+                Back to Login
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 };

@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import Alert from './Alert';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
@@ -45,68 +49,72 @@ const ForgotPassword = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center py-12 px-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow p-8">
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold">Forgot Password?</h2>
+      <Card className="max-w-md w-full">
+        <CardHeader className="text-center mb-6">
+          <CardTitle>Forgot Password?</CardTitle>
           <p className="text-gray-600 mt-2">
             Enter your email address and we'll send you a link to reset your password.
           </p>
-        </div>
+        </CardHeader>
 
-        {message && (
-          <Alert type={messageType} message={message} onClose={() => setMessage('')} />
-        )}
+        <CardContent>
+          {message && (
+            <Alert type={messageType} message={message} onClose={() => setMessage('')} />
+          )}
 
-        {!emailSent ? (
-          <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label className="block text-gray-700 mb-2">Email Address</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+          {!emailSent ? (
+            <form onSubmit={handleSubmit}>
+              <div className="mb-4">
+                <Label className="block text-gray-700 mb-2">Email Address</Label>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading}
+                  className="w-full"
+                  placeholder="Enter your email"
+                  required
+                />
+              </div>
+
+              <Button
+                type="submit"
                 disabled={isLoading}
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:border-blue-500"
-                placeholder="Enter your email"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:bg-blue-300"
-            >
-              {isLoading ? 'Sending...' : 'Send Reset Link'}
-            </button>
-
-            <div className="mt-4 text-center">
-              <button
-                onClick={() => navigate('/login')}
-                className="text-blue-600 hover:underline text-sm"
+                className="w-full"
+                variant="default"
               >
-                Back to Login
-              </button>
+                {isLoading ? 'Sending...' : 'Send Reset Link'}
+              </Button>
+
+              <div className="mt-4 text-center">
+                <Button
+                  onClick={() => navigate('/login')}
+                  variant="link"
+                  className="text-blue-600 hover:underline text-sm"
+                >
+                  Back to Login
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <div className="text-center">
+              <p className="text-gray-600 mb-4">
+                We've sent a password reset link to:
+              </p>
+              <p className="font-bold text-blue-600 mb-4">{email}</p>
+              <p className="text-gray-600 mb-6">
+                Please check your email and click the link to reset your password.
+              </p>
+              <Button
+                onClick={() => navigate('/login')}
+                className="w-full"
+              >
+                Return to Login
+              </Button>
             </div>
-          </form>
-        ) : (
-          <div className="text-center">
-            <p className="text-gray-600 mb-4">
-              We've sent a password reset link to:
-            </p>
-            <p className="font-bold text-blue-600 mb-4">{email}</p>
-            <p className="text-gray-600 mb-6">
-              Please check your email and click the link to reset your password.
-            </p>
-            <button
-              onClick={() => navigate('/login')}
-              className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
-            >
-              Return to Login
-            </button>
-          </div>
-        )}
-      </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
